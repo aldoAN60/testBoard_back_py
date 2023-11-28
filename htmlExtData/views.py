@@ -4,13 +4,13 @@ from urllib import request
 from django.shortcuts import render
 from bs4 import BeautifulSoup
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt  # Necesario si quieres evitar problemas con la protección CSRF
 from .models import ScrapReport
+from django.shortcuts import get_object_or_404
 
-@csrf_exempt
+
 def scraping_view(request):
     
-    file_path = 'C:\\Users\\MXARAD\\Downloads\\html\\Job_REPORTEOKMCH_Step_1.htm'
+    file_path = 'C:\\Users\\MXARAD\\Downloads\\html\\Job REPORTEOKMCH, Step 1.htm'
 
     with open(file_path, 'r', encoding='utf-8') as file:
         html_content = file.read()
@@ -19,7 +19,7 @@ def scraping_view(request):
     soup = BeautifulSoup(html_content, 'html.parser')
 
     # Ejemplo de raspado: obtener las últimas 6 tablas
-    tables = soup.find_all('table', {'class': 'list'})[-6:]
+    tables = soup.find_all('table', {'class': 'list'})[1:]
 
     # Procesar los datos raspados según tus necesidades
     all_scraped_data = []
@@ -37,14 +37,74 @@ def scraping_view(request):
             all_scraped_data.append(data_dict)
 
     del all_scraped_data[len(all_scraped_data)-1]
-    #data_validation(all_scraped_data)
+
     # Crear el diccionario final con la clave 'count' y 'data'
     data_dict = {'count': len(all_scraped_data), 'data': all_scraped_data}
-    # Obtener solo los valores de 'Entry Date'
 
-    #print(data_dict['data'][264])
+    insertData(data_dict['data'])
     # Devolver el resultado como JsonResponse
     return JsonResponse(data_dict, json_dumps_params={'indent': 2})
+
+def insertData(dataList_to_insert):
+    clean_data = clean_data_list(dataList_to_insert)
+
+    for data_item in clean_data:
+        # Verifica si ya existe una entrada con la misma combinación de entryDate y entryTime
+        existing_data = ScrapReport.objects.filter(entryDate=data_item['Entry Date'], entryTime=data_item['Time']).first()
+        if not existing_data:
+            data_instance = ScrapReport(
+                entryDate=data_item['Entry Date'],
+                entryTime=data_item['Time'],
+                MvT=data_item['MvT'],
+                valType=data_item['Val. Type'],
+                MvtTypeTxt=data_item['MvtTypeTxt'],
+                userName=data_item['User Name'],
+                material=data_item['Material'],
+                quantity=data_item['Quantity'],
+                EUn=data_item['EUn'],
+                LCAmount=data_item['Amount in LC'],
+                Crcy=data_item['Crcy'],
+                materialDescription=data_item['Description'],
+                matDoc=data_item['Mat. Doc.'],
+                plnt=data_item['Plnt'],
+                numOrder=data_item['Order'],
+                SLoc=data_item['SLoc'],
+                batch=data_item['Batch'],
+                PO=data_item['PO'],
+                reas=data_item['Reas.'],
+                pstngDate=data_item['Pstng Date'],
+                costCtr=data_item['Cost Ctr'],
+            )
+            data_instance.save()
+
+
+def clean_data_list(data_list):
+    cleaned_data_list = []
+
+    for data_dict in data_list:
+        cleaned_data = {}
+
+        for key, value in data_dict.items():
+            # Reemplazar espacios no rompibles con espacios regulares
+            cleaned_key = key.replace('\xa0', ' ')
+
+            # Reemplazar otros caracteres especiales si es necesario
+            cleaned_key = cleaned_key.replace('\r', ' ').replace('\n', ' ')
+
+            # Reemplazar espacios no rompibles en el valor
+            cleaned_value = value.replace('\xa0', ' ')
+
+            # Reemplazar otros caracteres especiales en el valor si es necesario
+            cleaned_value = cleaned_value.replace('\r', ' ').replace('\n', ' ')
+
+            # Agregar la pareja de clave-valor al nuevo diccionario
+            cleaned_data[cleaned_key] = cleaned_value
+
+        cleaned_data_list.append(cleaned_data)
+
+    return cleaned_data_list
+
+
 
 def obtener_datos_json(request):
     data = ScrapReport.objects.all()

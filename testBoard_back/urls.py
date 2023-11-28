@@ -21,5 +21,5 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('',welcomeMesage),
     path('api/htmlData/',scraping_view),
-    path('api/json/', obtener_datos_json)
+    path('api/getReport/', obtener_datos_json)
 ]
