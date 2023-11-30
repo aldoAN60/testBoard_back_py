@@ -12,7 +12,7 @@ import win32com.client
 import subprocess
 
 def scraping_view(request):
-    
+    download_outlook_attachments(request)
     file_path = 'C:\\Users\\MXARAD\\Downloads\\html\\Job REPORTEOKMCH, Step 1.htm'
 
     with open(file_path, 'r', encoding='utf-8') as file:
@@ -107,7 +107,7 @@ def modelInsert(data_item):
         material=data_item['Material'],
         quantity=data_item['Quantity'],
         EUn=data_item['EUn'],
-        LCAmount=data_item['LC Amount'],
+        LCAmount=data_item.get('Amount in LC', data_item.get('LC Amount', '')),
         Crcy=data_item['Crcy'],
         materialDescription=data_item['Material Description'],
         matDoc=data_item['Mat. Doc.'],
@@ -217,5 +217,4 @@ def obtener_datos_json(request):
     return JsonResponse(json_data, safe=False)
 
 def welcomeMesage(request):
-    download_outlook_attachments(request)
     return HttpResponse('hola mundo')
