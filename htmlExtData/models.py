@@ -1,7 +1,20 @@
 # models.py
 from django.db import models
 
-class ScrapReport(models.Model):
+
+class HourlyComplianceReport(models.Model):
+    hour = models.IntegerField(primary_key=True)
+    quantity_per_hour = models.IntegerField()
+    total_quantity = models.IntegerField()
+
+    def __str__(self):
+        return f"{self.hour} - {self.quantity_per_hour} - {self.total_quantity}"
+
+    class Meta:
+        db_table = 'HourlyComplianceReport'
+
+
+class complianceReport(models.Model):
     id_entry = models.AutoField(primary_key=True)
     entryDate = models.CharField(max_length=50)
     entryTime = models.CharField(max_length=50)
@@ -27,6 +40,6 @@ class ScrapReport(models.Model):
 
     def __str__(self):
         return f"{self.id_entry} - {self.material}"
-    
+
     class Meta:
-        db_table = 'scrapReport'
+        db_table = 'complianceReport'

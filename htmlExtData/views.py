@@ -1,19 +1,22 @@
-from django.shortcuts import render
 from django.http import HttpResponse
-from urllib import request
-from django.shortcuts import render
 from bs4 import BeautifulSoup
 from django.http import JsonResponse
-from .models import ScrapReport
-from django.shortcuts import get_object_or_404
-from datetime import datetime, timedelta, timezone
+from .models import complianceReport, HourlyComplianceReport
+
+from datetime import datetime
 import pytz
 import win32com.client
-import subprocess
+
+mainRuteForHTMLDATA = 'C:\\Users\\MXARAD\\Downloads\\html\\'  # CAMBIAR ESTA RUTA CUANDO EL ARCHIVO SE MUEVA AL SERVIDOR
+
+responsesHTTP = {'success': {"response": 200},
+                 'failed': {"response": 500},
+                 'unknown': {"response": 200}
+                 }
+
 
 def scraping_view(request):
-    download_outlook_attachments(request)
-    file_path = 'C:\\Users\\MXARAD\\Downloads\\html\\Job REPORTEOKMCH, Step 1.htm'
+    file_path = mainRuteForHTMLDATA + 'Job REPORTEOKMCH, Step 1.htm'
 
     with open(file_path, 'r', encoding='utf-8') as file:
         html_content = file.read()
@@ -28,7 +31,7 @@ def scraping_view(request):
     all_scraped_data = []
     for table in tables:
         rows = table.find_all('tr')
-        
+
         # Obtener las claves de la primera fila
         keys_row = rows[0]
         keys = [key.text.strip() for key in keys_row.find_all('td')]
@@ -39,14 +42,15 @@ def scraping_view(request):
             data_dict = dict(zip(keys, values))
             all_scraped_data.append(data_dict)
 
-    del all_scraped_data[len(all_scraped_data)-1]
+    del all_scraped_data[len(all_scraped_data) - 1]
 
     # Crear el diccionario final con la clave 'count' y 'data'
-    data_dict = {'count': len(all_scraped_data), 'data': all_scraped_data}
+    data_dict = {'data': all_scraped_data}
 
     insertData(data_dict['data'])
     # Devolver el resultado como JsonResponse
     return JsonResponse(data_dict, json_dumps_params={'indent': 2})
+
 
 def download_outlook_attachments(request):
     outlook_app = win32com.client.Dispatch("Outlook.Application").GetNamespace("MAPI")
@@ -62,42 +66,38 @@ def download_outlook_attachments(request):
         num_attachments = attachments.Count
 
         if num_attachments > 0:
-            response_text = f"\nNúmero de archivos adjuntos: {num_attachments}"
 
             for i in range(1, num_attachments + 1):
                 attachment = attachments.Item(i)
-                save_path = f"C:\\Users\\MXARAD\\Downloads\\html\\{attachment.FileName}"
+                save_path = f"{mainRuteForHTMLDATA}{attachment.FileName}"
                 attachment.SaveAsFile(save_path)
-                response_text += f"\nArchivo adjunto guardado en: {save_path}"
 
-            return HttpResponse(response_text)
+            return JsonResponse(responsesHTTP['success'], safe=False)
         else:
-            return HttpResponse("\nNo hay archivos adjuntos en este correo.")
+            return JsonResponse(responsesHTTP['failed'], safe=False)
     else:
-        return HttpResponse("No se encontró ningún correo en esta carpeta.")
-
-
+        return JsonResponse(responsesHTTP['failed'], safe=False)
 
 
 def insertData(dataList_to_insert):
     clean_data = clean_data_list(dataList_to_insert)
     changing_date = date_converter(clean_data)
     # Verifica si la tabla está vacía
-    if ScrapReport.objects.count() == 0:
+    if complianceReport.objects.count() == 0:
         # Si está vacía, realiza una inserción directa
         for data_item in changing_date:
             modelInsert(data_item)
     else:
         # Si no está vacía, realiza la validación de existencia de datos
         for data_item in changing_date:
-            existing_data = ScrapReport.objects.filter(entryDate=data_item['Entry Date'], entryTime=data_item['Time']).first()
+            existing_data = complianceReport.objects.filter(entryDate=data_item['Entry Date'],
+                                                            entryTime=data_item['Time']).first()
             if not existing_data:
                 modelInsert(data_item)
 
 
-
 def modelInsert(data_item):
-    data_instance = ScrapReport(
+    data_instance = complianceReport(
         entryDate=data_item['Entry Date'],
         entryTime=data_item['Time'],
         MvT=data_item['MvT'],
@@ -119,8 +119,9 @@ def modelInsert(data_item):
         reas=data_item['Reas.'],
         pstngDate=data_item['Pstng Date'],
         costCtr=data_item['Cost Ctr'],
-        )
+    )
     data_instance.save()
+
 
 def date_converter(data_list):
     # Define las zonas horarias
@@ -153,6 +154,7 @@ def date_converter(data_list):
 
     return data_list
 
+
 def clean_data_list(data_list):
     cleaned_data_list = []
 
@@ -180,41 +182,51 @@ def clean_data_list(data_list):
     return cleaned_data_list
 
 
-
-def obtener_datos_json(request):
-    data = ScrapReport.objects.all()
+def getcomplianceReport(request):
+    data = complianceReport.objects.all()
 
     # Crear una lista de diccionarios con los campos que deseas incluir en el JSON
     json_data = [
-    {
-        'id_entry': entry.id_entry,
-        'entryDate': entry.entryDate,
-        'entryTime': entry.entryTime,
-        'MvT': entry.MvT,
-        'valType': entry.valType,
-        'MvtTypeTxt': entry.MvtTypeTxt,
-        'userName': entry.userName,
-        'material': entry.material,
-        'quantity': entry.quantity,
-        'EUn': entry.EUn,
-        'LCAmount': entry.LCAmount,
-        'Crcy': entry.Crcy,
-        'materialDescription': entry.materialDescription,
-        'matDoc': entry.matDoc,
-        'plnt': entry.plnt,
-        'numOrder': entry.numOrder,
-        'SLoc': entry.SLoc,
-        'batch': entry.batch,
-        'PO': entry.PO,
-        'reas': entry.reas,
-        'pstngDate': entry.pstngDate,
-        'costCtr': entry.costCtr,
-    }
-    for entry in data
-]
-
+        {
+            'id_entry': entry.id_entry,
+            'entryDate': entry.entryDate,
+            'entryTime': entry.entryTime,
+            'MvT': entry.MvT,
+            'valType': entry.valType,
+            'MvtTypeTxt': entry.MvtTypeTxt,
+            'userName': entry.userName,
+            'material': entry.material,
+            'quantity': entry.quantity,
+            'EUn': entry.EUn,
+            'LCAmount': entry.LCAmount,
+            'Crcy': entry.Crcy,
+            'materialDescription': entry.materialDescription,
+            'matDoc': entry.matDoc,
+            'plnt': entry.plnt,
+            'numOrder': entry.numOrder,
+            'SLoc': entry.SLoc,
+            'batch': entry.batch,
+            'PO': entry.PO,
+            'reas': entry.reas,
+            'pstngDate': entry.pstngDate,
+            'costCtr': entry.costCtr,
+        }
+        for entry in data
+    ]
 
     return JsonResponse(json_data, safe=False)
 
+def getHourlyComplianceReport(request):
+    data = HourlyComplianceReport.objects.all()
+
+    json_data = [
+        {
+            'hour': row.hour,
+            'quantity_per_hour': row.quantity_per_hour,
+            'total_quantity': row.total_quantity
+        }
+        for row in data
+    ]
+    return JsonResponse(json_data, safe=False)
 def welcomeMesage(request):
     return HttpResponse('hola mundo')

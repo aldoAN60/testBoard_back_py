@@ -16,10 +16,12 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from htmlExtData.views import welcomeMesage, scraping_view, obtener_datos_json
+from htmlExtData.views import *
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('',welcomeMesage),
-    path('api/htmlData/',scraping_view),
-    path('api/getReport/', obtener_datos_json)
+    path('api/html-data-extraction/',scraping_view),
+    path('api/get-compliance-report/', getcomplianceReport),
+    path('api/get-hourly-compliance-report/', getHourlyComplianceReport),
+    path('api/download-outlook-attached/', download_outlook_attachments),
 ]
